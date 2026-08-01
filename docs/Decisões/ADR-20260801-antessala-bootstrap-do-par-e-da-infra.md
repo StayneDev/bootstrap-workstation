@@ -56,6 +56,15 @@ Conduta do confronto: cada alternativa ganha custo próprio antes de qualquer es
 - **C — cloud-init/Terraform**: **já recusado** no ADR-ferramentas; não reabre sem fato novo.
 - **D — o desenho do operador, refinado pelo confronto** (seed público interativo com perfis): o seed é este repo, que já é público; rodar sem argumento deixa de imprimir help e abre a escolha de **perfil**; perfil é **manifesto, não código** (`perfis/pessoal`, `perfis/trabalho`, `perfis/minimo` — listas nomeadas dos passos que já existem como flags; trabalho = sem `--discord`/`--steam`); **interativo uma vez, nunca ao longo** — as respostas se colhem no início e se gravam num arquivo local de respostas, o resto roda sozinho, e re-execução lê o arquivo sem perguntar (U8; e `--perfil X` dá o caminho headless); as **fases ganham dente**: autenticação verificada antes do clone dos privados (falha na entrada dizendo o quê, não no meio), e o fechamento é uma passada de verificação sobre tudo que o perfil declarou (o `install.sh` do par já faz a dele — falta a do resto). Custo estimado: um dia de shell sobre o que existe, zero dependência nova. Risco: menu interativo é superfície de teste que VM limpa não cobre sozinha — o caminho headless por flag é o testável, o menu é açúcar por cima dele.
 
+## Critério de pronto (operador, 2026-08-01 — "critério de perfeição, teste de ponta a ponta")
+
+Duas validações, em sequência, com autoridade separada (quem implementa não fecha o próprio veredito):
+
+1. **Dev-QA (agente):** VM vazia → one-liner do repo público → condução pelo processo → **instalação efetiva dos três perfis**, com o fechamento verificando verde tudo que cada perfil declarou. Idempotência provada: segunda execução diz "nada a fazer".
+2. **Aceite (operador):** ele mesmo pega uma VM vazia, roda o repo, e o processo **o conduz** até o fim — e funciona **sem atrito**. Só então está entregue.
+
+**Limite declarado (U12):** "sem atrito" é leitura do operador — nenhum mecanismo a prova; é exatamente o aceite. E a VM do agente prova *instalação e verificação*; para apps gráficos (Steam, Discord, Brave Origin), "abre e funciona" de verdade se prova na passada do operador em máquina com display — e login em conta pessoal é fase dele por natureza, o processo conduz até a porta e verifica o que dá para verificar sem a conta.
+
 ## Por que não os outros
 
 *Vazio — é o que o confronto preenche.*
