@@ -340,6 +340,10 @@ _firefox_profile() {
   if [ -z "$profile" ] && [ -d "$HOME/.var/app/org.mozilla.firefox/.mozilla/firefox" ]; then
     profile=$(find "$HOME/.var/app/org.mozilla.firefox/.mozilla/firefox" -maxdepth 1 -name "*.default*" -type d | head -1)
   fi
+  # Ubuntu 24.04: firefox nativo é SNAP e o perfil mora em ~/snap (achado do dev-QA #25)
+  if [ -z "$profile" ] && [ -d "$HOME/snap/firefox/common/.mozilla/firefox" ]; then
+    profile=$(find "$HOME/snap/firefox/common/.mozilla/firefox" -maxdepth 1 -name "*.default*" -type d | head -1)
+  fi
   echo "$profile"
 }
 
