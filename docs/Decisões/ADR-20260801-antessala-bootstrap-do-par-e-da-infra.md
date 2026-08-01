@@ -1,6 +1,6 @@
 ---
 type: adr
-status: proposto
+status: aceito
 data: 2026-08-01
 updated: 2026-08-01
 tags: [adr, antessala, bootstrap]
@@ -74,4 +74,11 @@ Duas validações, em sequência, com autoridade separada (quem implementa não 
 
 ## Decisão
 
-**Pendente — antessala aberta em 2026-08-01, por ordem do operador.** O apto é leitura dele sobre as quatro perguntas respondidas. Projeto pode dormir aqui o tempo que precisar: dormir na antessala é estado normal de desejo não confrontado.
+**APTO — declarado pelo operador em 2026-08-01**, com as quatro perguntas respondidas no mesmo dia em que a antessala abriu (quatro entradas dele, três confrontos medidos, política de falha e composição de perfis fechadas em diálogo). A antessala rodou sob a conduta do abrir (`brainstorming` roteado pelo [[Capacidades]] do acervo, com as sobrescritas) — a primeira depois da correção registrada no Melhorias-Log do acervo.
+
+**Terminal da conduta cumprido — a fila, nunca `writing-plans`:** a esteira está nas issues, ordenadas por dependência:
+
+- `bootstrap-workstation` **#20** fases com dente → **#21** manifestos de perfil → **#22** menu/respostas/headless · **#23** Brave Origin → **#24** fechamento declarado×real → **#25** dev-QA em VM limpa (fecha o veredito do par) → **#26** aceite do operador sem atrito.
+- `bootstrap-infra` **#18** expurgo (triagem + desarmar PostToolUse + casa do backlog) — pré-requisito do perfil `infra`.
+
+O estágio 1 da esteira (implementação) começa por #20; o aceite (#26) é o critério de perfeição deste nó.
