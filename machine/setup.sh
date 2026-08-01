@@ -25,7 +25,7 @@ detect_distro() {
 # 1. PACOTES BASE
 # =============================================================================
 install_base() {
-  echo -e "\n[1/7] Instalando pacotes base..."
+  echo -e "\n[provisionar] Instalando pacotes base..."
 
   case $DISTRO in
     arch)
@@ -100,7 +100,7 @@ EOF
 # 2. APPS VIA FLATPAK (universal)
 # =============================================================================
 install_flatpak_apps() {
-  echo -e "\n[2/7] Instalando apps via Flatpak..."
+  echo -e "\n[provisionar] Instalando apps via Flatpak..."
   sudo flatpak install -y flathub com.discordapp.Discord
   sudo flatpak install -y flathub com.valvesoftware.Steam
   # Firefox nao e instalado aqui — distros ja incluem versao nativa.
@@ -111,7 +111,7 @@ install_flatpak_apps() {
 # 3. JDK 21
 # =============================================================================
 install_java() {
-  echo -e "\n[3/7] Instalando JDK 21..."
+  echo -e "\n[provisionar] Instalando JDK 21..."
   case $DISTRO in
     arch)    sudo pacman -S --noconfirm --needed jdk21-openjdk ;;
     debian)
@@ -138,7 +138,7 @@ install_java() {
 # 4. NODE (nvm) + CLAUDE CODE
 # =============================================================================
 install_node_and_claude() {
-  echo -e "\n[4/7] Instalando nvm, Node e Claude Code..."
+  echo -e "\n[provisionar] Instalando nvm, Node e Claude Code..."
 
   export NVM_DIR="$HOME/.nvm"
   if [ ! -d "$NVM_DIR" ]; then
@@ -156,7 +156,7 @@ install_node_and_claude() {
 # 5. TERMINAL — Zsh + Oh My Zsh + tema bira
 # =============================================================================
 setup_terminal() {
-  echo -e "\n[5/7] Configurando terminal..."
+  echo -e "\n[configurar] Configurando terminal..."
 
   # Oh My Zsh
   if [ ! -d "$HOME/.oh-my-zsh" ]; then
@@ -216,7 +216,7 @@ pause() {
 # 6. GIT + SSH + GITHUB (runtime)
 # =============================================================================
 setup_git_ssh() {
-  echo -e "\n[6/7] Configurando Git e chave SSH..."
+  echo -e "\n[autenticar] Configurando Git e chave SSH..."
 
   git config --global user.name "StayneDev"
   git config --global user.email "makalyster.devops@gmail.com"
@@ -538,7 +538,7 @@ setup_vscode() {
 # 11. CLAUDE CONFIG (skills, settings — repo dedicado)
 # =============================================================================
 install_claude_config() {
-  echo -e "\n[10/10] Configurando Claude Code (o par acervo + maquinaria)..."
+  echo -e "\n[fechar] Configurando Claude Code (o par acervo + maquinaria)..."
   local ACERVO_DIR="$HOME/repos/orquestrador-normativo-agente-acervo"
   local MOTOR_DIR="$HOME/repos/orquestrador-normativo-agente-maquinaria"
   # repos privados — clone via SSH (requer --github feito antes)
@@ -555,8 +555,91 @@ install_claude_config() {
 }
 
 # =============================================================================
-# EXECUCAO
+# FASES (U15) — provisionar → configurar → autenticar → fechar
 # =============================================================================
+# A passagem entre fases é VERIFICADA, nunca comentário: cada fase abre com o
+# gate que prova a anterior, lendo o estado real da máquina (não a memória de
+# execução — "rodei" não é "está"). Gate reprovado recusa na entrada e CONDUZ:
+# diz exatamente o comando que resolve. Decidido na antessala
+# (docs/Decisões/ADR-20260801-antessala-bootstrap-do-par-e-da-infra.md, issue #20).
+
+gate_provisionado() {
+  local faltas=()
+  local b
+  for b in git curl zsh flatpak; do
+    command -v "$b" &>/dev/null || faltas+=("$b")
+  done
+  if [ ${#faltas[@]} -gt 0 ]; then
+    echo "[gate] provisionar incompleto — faltam: ${faltas[*]}"
+    echo "[gate] rode antes: bash setup.sh --fase provisionar"
+    return 1
+  fi
+}
+
+gate_configurado() {
+  if [ ! -d "$HOME/.oh-my-zsh" ]; then
+    echo "[gate] configurar incompleto — terminal não configurado (oh-my-zsh ausente)"
+    echo "[gate] rode antes: bash setup.sh --fase configurar"
+    return 1
+  fi
+}
+
+gate_autenticado() {
+  if ! ssh -T git@github.com -o StrictHostKeyChecking=no -o BatchMode=yes 2>&1 | grep -q "successfully authenticated"; then
+    echo "[gate] autenticar incompleto — GitHub não responde à chave SSH desta máquina"
+    echo "[gate] rode antes: bash setup.sh --fase autenticar"
+    return 1
+  fi
+}
+
+fase_provisionar() {
+  echo -e "\n══════ FASE 1/4 — PROVISIONAR (tudo que é público) ══════"
+  detect_distro
+  install_base
+  install_flatpak_apps
+  install_java
+  install_node_and_claude
+  install_sshpilot
+}
+
+fase_configurar() {
+  gate_provisionado || return 1
+  echo -e "\n══════ FASE 2/4 — CONFIGURAR ══════"
+  setup_terminal
+  setup_vscode
+  setup_firefox
+}
+
+fase_autenticar() {
+  gate_configurado || return 1
+  echo -e "\n══════ FASE 3/4 — AUTENTICAR (interativa por natureza) ══════"
+  login_firefox          # Bitwarden primeiro: é o cofre de onde o resto sai
+  setup_git_ssh          # chave SSH + GitHub — destrava os clones privados
+  login_tailscale
+  login_claude
+}
+
+fase_fechar() {
+  gate_autenticado || return 1
+  echo -e "\n══════ FASE 4/4 — FECHAR (clones privados + verificação) ══════"
+  install_claude_config  # clona o par e roda o install.sh do motor, que verifica
+  echo ""
+  echo "============================================================"
+  echo "  FASES CONCLUÍDAS"
+  echo "  Logins de apps pessoais (à parte, por perfil): --discord --steam"
+  echo "  Reinicie o terminal para aplicar o zsh."
+  echo "============================================================"
+}
+
+rodar_fase() {
+  case "$1" in
+    provisionar) fase_provisionar ;;
+    configurar)  fase_configurar ;;
+    autenticar)  fase_autenticar ;;
+    fechar)      fase_fechar ;;
+    *) echo "Fase desconhecida: $1 (use: provisionar | configurar | autenticar | fechar)"; return 1 ;;
+  esac
+}
 
 # =============================================================================
 # AJUDA
@@ -565,7 +648,13 @@ show_help() {
   echo ""
   echo "Uso: bash setup.sh [opcao]"
   echo ""
-  echo "  (sem opcao)       Executa o setup completo em sequencia"
+  echo "  (sem opcao)       Executa as 4 fases em ordem, com passagem verificada"
+  echo ""
+  echo "  Fases (a passagem e verificada — fase sem pre-requisito recusa e conduz):"
+  echo "    --fase provisionar   1/4: tudo que e publico (base, flatpak, java, node, sshpilot)"
+  echo "    --fase configurar    2/4: terminal, vscode, firefox (exige provisionar)"
+  echo "    --fase autenticar    3/4: bitwarden, ssh/github, tailscale, claude (exige configurar)"
+  echo "    --fase fechar        4/4: clones privados do par + verificacao (exige autenticar)"
   echo ""
   echo "  Instalacao:"
   echo "    --base          Pacotes base (git, curl, zsh, vscode...)"
@@ -594,7 +683,14 @@ show_help() {
 # =============================================================================
 # EXECUCAO
 # =============================================================================
+# Guard de source: os testes (testes/fases.sh) carregam as funções com `source`
+# sem disparar o dispatch — executar direto continua funcionando igual.
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+  return 0 2>/dev/null || true
+fi
+
 case "$1" in
+  --fase)       rodar_fase "$2" ;;
   --base)       detect_distro; install_base ;;
   --flatpak)    install_flatpak_apps ;;
   --java)       detect_distro; install_java ;;
@@ -613,25 +709,9 @@ case "$1" in
   --claude)     install_claude_config ;;
   --help|-h)    show_help ;;
   "")
-    detect_distro
-    install_base
-    install_flatpak_apps
-    install_java
-    install_node_and_claude
-    install_sshpilot
-    setup_terminal
-    setup_firefox
-    login_firefox
-    setup_git_ssh
-    setup_vscode
-    install_claude_config
-    runtime_logins
-    echo ""
-    echo "============================================================"
-    echo "  SETUP CONCLUIDO"
-    echo "============================================================"
-    echo "  Tudo configurado. Reinicie o terminal para aplicar o zsh."
-    echo "============================================================"
+    # As 4 fases em ordem — cada uma verifica a anterior pelo estado real.
+    # O intercalado antigo (config e auth trançados) morreu na issue #20.
+    fase_provisionar && fase_configurar && fase_autenticar && fase_fechar
     ;;
   *)
     echo "Opcao desconhecida: $1"
