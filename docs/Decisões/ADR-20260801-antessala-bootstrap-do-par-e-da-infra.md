@@ -24,6 +24,7 @@ Premissa **removida de propósito**: o *como* (shell puro? Ansible? cloud-init?)
 
 4. **Foco atual: Debian/Ubuntu.** Portabilidade para outras distros é desejável e **não prioritária** — o que se pede agora é só não fechar a porta (a costura `detect_distro` + chamadas de pacote isoláveis).
 5. **Os repos que ele baixa são privados** (o par e o nº 4) — então o fluxo tem **fases**: baixar tudo → configurar → fechar dependência. E a entrada é **interativa**: clona-se um repo **público**, roda-se, e ele abre a escolha do tipo de instalação — **perfis** (ex.: estação sem programas pessoais como jogos e Discord × estação pessoal completa). O operador declarou não ter certeza de que este é o desenho mais eficiente — é candidato, não decisão.
+6. **Os perfis, decididos (operador, 2026-08-01, terceira entrada):** três, em camadas — **`minimo`** (a camada que aparece em todos: a base comum), **`pessoal`** e **`profissional`** por cima dele. Composição, não cópia: `pessoal = minimo + camada pessoal`, `profissional = minimo + camada profissional` — o mínimo se escreve uma vez (U1 em manifesto). Em aberto por declaração dele: se há um quarto perfil ("não sei se mais, por enquanto acho que tá bom") — a lista cresce quando a vida pedir, não por especulação (YAGNI). O conteúdo exato de cada camada (o mapeamento das 14 flags atuais) é trabalho de manifesto na esteira, com rascunho a revisar, não interrogatório flag a flag.
 
 ## Contra o que se bateu (medido em 2026-08-01)
 
