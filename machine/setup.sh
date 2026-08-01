@@ -366,7 +366,14 @@ setup_firefox() {
     echo "  [INFO] Perfil nao encontrado — abrindo Firefox para criacao inicial..."
     $FF_CMD &>/dev/null &
     pause "Firefox aberto. Aguarde carregar completamente e depois FECHE-O para continuar"
+    # snap firefox demora no primeiro launch (seed) — espera ATIVA pelo perfil,
+    # ate 90s, em vez de confiar no timing do ENTER (achado do dev-QA #25)
+    local tent=0
     FIREFOX_PROFILE=$(_firefox_profile)
+    while [ -z "$FIREFOX_PROFILE" ] && [ $tent -lt 45 ]; do
+      sleep 2; tent=$((tent+1))
+      FIREFOX_PROFILE=$(_firefox_profile)
+    done
   fi
 
   if [ -z "$FIREFOX_PROFILE" ]; then

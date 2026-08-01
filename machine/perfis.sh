@@ -135,7 +135,7 @@ rodar_perfil() { # $1=nome — headless se as respostas já existem
 prova_passo() { # o comando que PROVA cada passo — instalado não é rodado, é constatável
   case "$1" in
     base)          command -v git &>/dev/null && command -v zsh &>/dev/null && command -v flatpak &>/dev/null ;;
-    node_claude)   [ -d "$HOME/.nvm" ] && command -v claude &>/dev/null ;;
+    node_claude)   [ -d "$HOME/.nvm" ] && { command -v claude &>/dev/null || ls "$HOME"/.nvm/versions/node/*/bin/claude &>/dev/null; } ;;  # nvm não está no PATH de shell não-interativo (achado do dev-QA)
     java)          command -v java &>/dev/null ;;
     sshpilot)      command -v sshpilot &>/dev/null || flatpak list --app 2>/dev/null | grep -q sshpilot ;;
     discord)       flatpak list --app 2>/dev/null | grep -q com.discordapp.Discord ;;
