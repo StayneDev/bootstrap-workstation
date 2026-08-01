@@ -43,7 +43,7 @@ eval "$SETUP" --terminal    # Zsh + Oh My Zsh + tema bira
 eval "$SETUP" --github      # git config + chave SSH + adicionar no GitHub
 eval "$SETUP" --firefox     # privacidade + Bitwarden
 eval "$SETUP" --vscode      # settings + extensões
-eval "$SETUP" --claude      # acervo-orquestracao-normativa-agente (skills e settings)
+eval "$SETUP" --claude      # orquestrador-normativo-agente-acervo (skills e settings)
 ```
 
 ### Logins

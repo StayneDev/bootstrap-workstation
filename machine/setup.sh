@@ -538,15 +538,20 @@ setup_vscode() {
 # 11. CLAUDE CONFIG (skills, settings — repo dedicado)
 # =============================================================================
 install_claude_config() {
-  echo -e "\n[10/10] Configurando Claude Code (skills e settings)..."
-  local REPO_DIR="$HOME/repos/acervo-orquestracao-normativa-agente"
-  # repo privado — clone via SSH (requer --github feito antes)
+  echo -e "\n[10/10] Configurando Claude Code (o par acervo + maquinaria)..."
+  local ACERVO_DIR="$HOME/repos/orquestrador-normativo-agente-acervo"
+  local MOTOR_DIR="$HOME/repos/orquestrador-normativo-agente-maquinaria"
+  # repos privados — clone via SSH (requer --github feito antes)
   mkdir -p "$HOME/repos"
-  if [ ! -d "$REPO_DIR/.git" ]; then
-    git clone git@github.com:StayneDev/acervo-orquestracao-normativa-agente.git "$REPO_DIR"
+  if [ ! -d "$ACERVO_DIR/.git" ]; then
+    git clone git@github.com:StayneDev/orquestrador-normativo-agente-acervo.git "$ACERVO_DIR"
   fi
-  bash "$REPO_DIR/install.sh"
-  echo "  [OK] Claude config instalado."
+  if [ ! -d "$MOTOR_DIR/.git" ]; then
+    git clone git@github.com:StayneDev/orquestrador-normativo-agente-maquinaria.git "$MOTOR_DIR"
+  fi
+  # o install mora na MAQUINARIA e instala o par (ADR-20260730-estratos-e-extracao)
+  bash "$MOTOR_DIR/install.sh"
+  echo "  [OK] Claude config (par) instalado."
 }
 
 # =============================================================================
