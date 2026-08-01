@@ -311,7 +311,7 @@ setup_firefox() {
 
   # --- user.js — perfil de privacidade e seguranca ---
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  DOTFILES_RAW="https://raw.githubusercontent.com/StayneDev/dotfiles/main/machine"
+  DOTFILES_RAW="https://raw.githubusercontent.com/StayneDev/bootstrap-workstation/main/machine"
   if [ -f "$SCRIPT_DIR/firefox-user.js" ]; then
     cp "$SCRIPT_DIR/firefox-user.js" "$FIREFOX_PROFILE/user.js"
   else
@@ -504,7 +504,7 @@ setup_vscode() {
 
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   VSCODE_SETTINGS_DIR="$HOME/.config/Code/User"
-  DOTFILES_RAW="https://raw.githubusercontent.com/StayneDev/dotfiles/main/machine"
+  DOTFILES_RAW="https://raw.githubusercontent.com/StayneDev/bootstrap-workstation/main/machine"
   mkdir -p "$VSCODE_SETTINGS_DIR"
 
   # settings.json — local ou fallback via curl
@@ -539,11 +539,11 @@ setup_vscode() {
 # =============================================================================
 install_claude_config() {
   echo -e "\n[10/10] Configurando Claude Code (skills e settings)..."
-  local REPO_DIR="$HOME/repos/claude-config"
+  local REPO_DIR="$HOME/repos/acervo-orquestracao-normativa-agente"
   # repo privado — clone via SSH (requer --github feito antes)
   mkdir -p "$HOME/repos"
   if [ ! -d "$REPO_DIR/.git" ]; then
-    git clone git@github.com:StayneDev/claude-config.git "$REPO_DIR"
+    git clone git@github.com:StayneDev/acervo-orquestracao-normativa-agente.git "$REPO_DIR"
   fi
   bash "$REPO_DIR/install.sh"
   echo "  [OK] Claude config instalado."

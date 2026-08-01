@@ -1,4 +1,4 @@
-# dotfiles
+# bootstrap-workstation
 
 > Setup pós-formatação para Arch, Debian/Ubuntu e Fedora.
 
@@ -24,7 +24,7 @@
 ## Setup
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/StayneDev/dotfiles/main/machine/setup.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/StayneDev/bootstrap-workstation/main/machine/setup.sh)
 ```
 
 O script detecta a distro automaticamente e executa tudo em sequência, incluindo a instalação do `git`.
@@ -32,7 +32,7 @@ O script detecta a distro automaticamente e executa tudo em sequência, incluind
 ### Módulos individuais
 
 ```bash
-SETUP="bash <(curl -fsSL https://raw.githubusercontent.com/StayneDev/dotfiles/main/machine/setup.sh)"
+SETUP="bash <(curl -fsSL https://raw.githubusercontent.com/StayneDev/bootstrap-workstation/main/machine/setup.sh)"
 
 eval "$SETUP" --base        # pacotes base (git, curl, zsh, VSCode, Tailscale)
 eval "$SETUP" --flatpak     # Discord, Steam, Firefox via Flatpak
@@ -43,7 +43,7 @@ eval "$SETUP" --terminal    # Zsh + Oh My Zsh + tema bira
 eval "$SETUP" --github      # git config + chave SSH + adicionar no GitHub
 eval "$SETUP" --firefox     # privacidade + Bitwarden
 eval "$SETUP" --vscode      # settings + extensões
-eval "$SETUP" --claude      # claude-config (skills e settings)
+eval "$SETUP" --claude      # acervo-orquestracao-normativa-agente (skills e settings)
 ```
 
 ### Logins
