@@ -1,0 +1,5 @@
+# infra — a estação vira posto de controle da infra (clone, não merge)
+herda minimo
+passo provisionar sshpilot
+passo autenticar tailscale
+passo fechar clone_infra

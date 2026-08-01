@@ -1,0 +1,13 @@
+# minimo — a camada que aparece em todos (U1: escrita uma vez)
+# entrega: estação funcional + o par do orquestrador clonado e ligado
+passo provisionar base
+passo provisionar node_claude
+passo configurar terminal
+passo configurar firefox
+passo autenticar login_firefox
+passo autenticar git_ssh
+passo autenticar claude_login
+passo fechar claude_config
+# chaves que divergem entre camadas — a condução pergunta e grava nas respostas
+divergente git_name
+divergente git_email

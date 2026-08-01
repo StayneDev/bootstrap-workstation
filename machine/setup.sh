@@ -11,6 +11,9 @@ if [ "$EUID" -eq 0 ]; then
   exit 1
 fi
 
+# --- Perfis, respostas e conferência (#21, #22, #24) ---
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/perfis.sh"
+
 # --- Deteccao de distro ---
 detect_distro() {
   if command -v pacman &>/dev/null; then DISTRO="arch"
@@ -99,12 +102,67 @@ EOF
 # =============================================================================
 # 2. APPS VIA FLATPAK (universal)
 # =============================================================================
-install_flatpak_apps() {
-  echo -e "\n[provisionar] Instalando apps via Flatpak..."
+# Discord e Steam são camada PESSOAL (perfis/pessoal.perfil) — separados na #21
+# para o manifesto poder incluí-los ou não. install_flatpak_apps ficou como união.
+install_discord() {
+  echo -e "\n[provisionar] Instalando Discord (Flatpak)..."
   sudo flatpak install -y flathub com.discordapp.Discord
+}
+install_steam() {
+  echo -e "\n[provisionar] Instalando Steam (Flatpak)..."
   sudo flatpak install -y flathub com.valvesoftware.Steam
+}
+install_flatpak_apps() {
+  install_discord
+  install_steam
   # Firefox nao e instalado aqui — distros ja incluem versao nativa.
   # Flatpak e usado apenas como fallback via --firefox quando nativo ausente.
+}
+
+# =============================================================================
+# BRAVE ORIGIN (#23) — o Brave minimalista; gratuito no Linux
+# =============================================================================
+install_brave_origin() {
+  echo -e "\n[provisionar] Instalando Brave Origin..."
+  if command -v brave-origin &>/dev/null || command -v brave-browser-origin &>/dev/null; then
+    echo "  [OK] Brave Origin já instalado."
+    return 0
+  fi
+  case $DISTRO in
+    debian)
+      # canal oficial: laptop-updates.brave.com/latest/origin serve o pacote da
+      # release corrente; o endpoint linux64 entrega .deb
+      local DEB=/tmp/brave-origin.deb
+      if curl -fsSL "https://laptop-updates.brave.com/latest/origin/linux64" -o "$DEB" 2>/dev/null \
+         && sudo apt install -y "$DEB"; then
+        echo "  [OK] Brave Origin instalado via .deb oficial."
+        rm -f "$DEB"
+      else
+        rm -f "$DEB"
+        echo "  [AVISO] download direto falhou — endpoint pode ter mudado."
+        echo "          Instale manualmente de https://brave.com/origin/ e re-execute."
+        return 1
+      fi
+      ;;
+    arch|fedora)
+      echo "  [AVISO] Brave Origin: instalação automatizada só em Debian/Ubuntu por ora."
+      echo "          Baixe em https://brave.com/origin/ — portabilidade não é prioridade (antessala, item 4)."
+      return 1
+      ;;
+  esac
+}
+
+# =============================================================================
+# CLONE DA INFRA (perfil infra) — posto de controle: clone, não merge
+# =============================================================================
+clone_infra() {
+  echo -e "\n[fechar] Clonando bootstrap-infra (privado — exige auth)..."
+  local INFRA_DIR="$HOME/repos/bootstrap-infra"
+  mkdir -p "$HOME/repos"
+  if [ ! -d "$INFRA_DIR/.git" ]; then
+    git clone git@github.com:StayneDev/bootstrap-infra.git "$INFRA_DIR"
+  fi
+  echo "  [OK] posto de controle da infra pronto em $INFRA_DIR."
 }
 
 # =============================================================================
@@ -218,13 +276,18 @@ pause() {
 setup_git_ssh() {
   echo -e "\n[autenticar] Configurando Git e chave SSH..."
 
-  git config --global user.name "StayneDev"
-  git config --global user.email "makalyster.devops@gmail.com"
+  # identidade = chave divergente entre camadas (#21): vem das respostas do
+  # perfil quando existem; os literais antigos ficam como default do operador
+  local GIT_NAME GIT_EMAIL
+  GIT_NAME="$(resposta git_name 2>/dev/null)"; GIT_NAME="${GIT_NAME:-StayneDev}"
+  GIT_EMAIL="$(resposta git_email 2>/dev/null)"; GIT_EMAIL="${GIT_EMAIL:-makalyster.devops@gmail.com}"
+  git config --global user.name "$GIT_NAME"
+  git config --global user.email "$GIT_EMAIL"
   git config --global init.defaultBranch main
 
   if [ ! -f "$HOME/.ssh/id_ed25519" ]; then
     mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
-    ssh-keygen -t ed25519 -C "makalyster.devops@gmail.com" -f "$HOME/.ssh/id_ed25519" -N ""
+    ssh-keygen -t ed25519 -C "$GIT_EMAIL" -f "$HOME/.ssh/id_ed25519" -N ""
     eval "$(ssh-agent -s)"
     ssh-add "$HOME/.ssh/id_ed25519"
   fi
@@ -648,7 +711,11 @@ show_help() {
   echo ""
   echo "Uso: bash setup.sh [opcao]"
   echo ""
-  echo "  (sem opcao)       Executa as 4 fases em ordem, com passagem verificada"
+  echo "  (sem opcao)       Menu de perfil (pergunta UMA vez, grava respostas) + 4 fases"
+  echo ""
+  echo "  Perfis (manifesto em perfis/*.perfil; composicao: perfil = minimo + camada):"
+  echo "    --perfil <nome>      headless: minimo | pessoal | profissional | infra"
+  echo "    --conferir [nome]    conferencia declarado x real do perfil"
   echo ""
   echo "  Fases (a passagem e verificada — fase sem pre-requisito recusa e conduz):"
   echo "    --fase provisionar   1/4: tudo que e publico (base, flatpak, java, node, sshpilot)"
@@ -691,6 +758,8 @@ fi
 
 case "$1" in
   --fase)       rodar_fase "$2" ;;
+  --perfil)     rodar_perfil "$2" ;;   # headless: com respostas gravadas, não pergunta nada
+  --conferir)   conferir_perfil "${2:-$(resposta perfil)}" ;;
   --base)       detect_distro; install_base ;;
   --flatpak)    install_flatpak_apps ;;
   --java)       detect_distro; install_java ;;
@@ -709,9 +778,11 @@ case "$1" in
   --claude)     install_claude_config ;;
   --help|-h)    show_help ;;
   "")
-    # As 4 fases em ordem — cada uma verifica a anterior pelo estado real.
-    # O intercalado antigo (config e auth trançados) morreu na issue #20.
-    fase_provisionar && fase_configurar && fase_autenticar && fase_fechar
+    # Interativo UMA VEZ (#22): o menu escolhe o perfil e colhe as divergentes
+    # no início; grava nas respostas; o resto roda sozinho pelas 4 fases com
+    # gates (#20). Re-execução lê as respostas e não pergunta (U8).
+    PERFIL_ESCOLHIDO=$(menu_perfil) || exit 1
+    rodar_perfil "$PERFIL_ESCOLHIDO"
     ;;
   *)
     echo "Opcao desconhecida: $1"

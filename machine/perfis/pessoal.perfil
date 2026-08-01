@@ -1,0 +1,8 @@
+# pessoal — estação completa do operador
+herda minimo
+passo provisionar discord
+passo provisionar steam
+passo provisionar brave_origin
+passo autenticar login_discord
+passo autenticar login_steam
+passo autenticar tailscale
