@@ -40,6 +40,12 @@ Premissa **removida de propósito**: o *como* (shell puro? Ansible? cloud-init?)
 8. **A fase de autenticação existe só como comentário.** O clone dos privados "requer `--github` feito antes" — dependência declarada em prosa dentro do código, não verificada: pular a ordem falha no meio, não na entrada. É o elo do ciclo baixar → configurar → fechar que precisa de dente.
 9. **Arch já tem costura parcial** (`detect_distro`, 12 chamadas pacman/yay contra 20 de apt) — a portabilidade não prioritária custa só disciplina de não hardcodar `apt` novo fora da costura.
 
+**Terceiro confronto (2026-08-01), sobre fases × intercalado — verificado a pedido do operador:**
+
+10. **As fases existem como rótulo, não como execução.** O help do `setup.sh` já agrupa em "Instalacao / Configuracao / Logins", mas a execução é à la carte por flag, em fatias verticais que misturam as naturezas — e **toda dependência entre fases vive em comentário**: `--firefox` "(fazer antes de --github)", `--github` "(requer Bitwarden)", `--claude` clona privados assumindo auth feita. As funções carregam numeração `[4/7]` de um fluxo sequencial legado que ninguém mais executa. O orquestrador de fases, hoje, é a memória do operador.
+11. **O real corrige a ordem das fases do desejo:** "baixar tudo → configurar → fechar" não fecha, porque os repos que importam são privados e o clone deles exige autenticação antes. A ordem que sobrevive: **provisionar (públicos) → configurar → autenticar → fechar (clones privados + verificação do que o perfil declarou)** — e a passagem entre fases é verificada (U15), nunca comentário.
+12. **Navegador:** o operador pediu a troca/inclusão no lugar do Firefox — leitura provável: **Orion (Kagi)** — ícone preto e branco, camada paga gratuita no Linux, foco Debian/Ubuntu compatível; **nome a confirmar com o operador antes de qualquer implementação** (a fala dizia "brave origin"). O slot de navegador no perfil fica declarado; o produto exato é decisão dele.
+
 ## O que sobreviveu (nada ainda — candidatos a confronto, cada um com custo a medir)
 
 Conduta do confronto: cada alternativa ganha custo próprio antes de qualquer escolha (a forma do ADR-20260801-fase-de-confronto do acervo, praticada enquanto ele tramita).
