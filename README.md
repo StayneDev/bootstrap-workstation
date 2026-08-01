@@ -27,7 +27,47 @@
 bash <(curl -fsSL https://raw.githubusercontent.com/StayneDev/bootstrap-workstation/main/machine/setup.sh)
 ```
 
-O script detecta a distro automaticamente e executa tudo em sequência, incluindo a instalação do `git`.
+Sem argumento, o script abre o **menu de perfil** — pergunta tudo UMA vez no
+início (perfil + chaves divergentes, ex.: identidade git), grava as respostas em
+`~/.config/bootstrap-workstation/respostas` e roda sozinho as **4 fases** com
+passagem verificada:
+
+```
+provisionar (públicos) → configurar → autenticar (interativa) → fechar (privados + conferência)
+```
+
+Re-executar é seguro e não pergunta de novo (idempotente): o que está feito diz
+"ok", só o que falta roda. Fase sem pré-requisito recusa na entrada e diz o
+comando que resolve.
+
+### Perfis
+
+| Perfil | O que entrega |
+|---|---|
+| `minimo` | base + terminal + o par do orquestrador clonado e ligado (aparece em todos) |
+| `pessoal` | minimo + Discord, Steam, Brave Origin |
+| `profissional` | minimo + Java, VSCode, sshpilot, Brave Origin — sem programas pessoais |
+| `infra` | minimo + posto de controle da infra (clona o `bootstrap-infra` privado) |
+
+Headless (sem menu): `bash setup.sh --perfil profissional` · conferência avulsa:
+`bash setup.sh --conferir` · fase avulsa: `bash setup.sh --fase autenticar`.
+
+## Teste em VM (aceite do operador)
+
+A VM **303** (`ubuntu-bootstrap-teste`, Proxmox) existe para isto: Ubuntu 24.04
+desktop recém-formatado, **sem suspensão/soneca**, com snapshot `recem-formatado`.
+
+1. Voltar ao estado virgem (sempre que quiser recomeçar):
+   `ssh root@proxmox 'qm rollback 303 recem-formatado && qm start 303'`
+2. Abrir o console da VM na web do Proxmox → login `makina` / senha `bootstrap`.
+3. Abrir um terminal na VM e rodar **o comando mínimo** (branch em teste):
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/StayneDev/bootstrap-workstation/develop/machine/setup.sh)
+```
+
+4. Escolher o perfil no menu e seguir a condução. O critério de entrega é o da
+   antessala: o processo conduz até o fim **sem atrito** (ADR-20260801, Decisão).
 
 ### Módulos individuais
 
