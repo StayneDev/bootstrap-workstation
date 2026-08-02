@@ -51,6 +51,16 @@ else
   FALHA "menu re-perguntou ou escolheu errado: $saida"
 fi
 
+# ── 6b. o VALOR de menu_perfil é só o perfil (é assim que o dispatch o usa) ──
+# O caso 6 olhava a última linha e por isso APROVAVA o defeito: a mensagem
+# "não pergunto de novo" saía em stdout, entrava na captura `$(menu_perfil)` e a
+# segunda execução do script morria com "'<mensagem>\npessoal' não existe".
+# Aqui se compara o valor inteiro, que é o que `rodar_perfil` recebe.
+valor=$(HOME="$SB/home" RESPOSTAS="$SB/home/.config/bw/respostas" bash -c "source '$SETUP'; menu_perfil" 2>/dev/null)
+[ "$valor" = "infra" ] \
+  && ok "valor de menu_perfil é só o nome do perfil — re-execução sobrevive" \
+  || FALHA "menu_perfil devolveu mais que o perfil: $(printf '%q' "$valor")"
+
 # ── 7. menu recusa escolha inválida ──────────────────────────────────────────
 saida=$(HOME="$SB/h2" RESPOSTAS="$SB/h2/r" bash -c "mkdir -p $SB/h2; source '$SETUP'; echo 99 | menu_perfil"); rc=$?
 [ $rc -ne 0 ] && ok "menu recusa escolha fora da lista" || FALHA "menu aceitou 99 (rc=$rc)"
