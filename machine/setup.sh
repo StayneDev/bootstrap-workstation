@@ -41,13 +41,18 @@ fi
 source "$SCRIPT_DIR/perfis.sh"
 
 # --- Deteccao de distro ---
+# DISTRO escolhe o gerenciador de pacotes; DISTRO_ID diz QUAL distro e. Os dois
+# sao necessarios porque Debian e Ubuntu compartilham o apt mas nao os
+# repositorios — tratar Ubuntu como Debian mistura as duas arvores (ver o
+# guarda em install_base).
 detect_distro() {
   if command -v pacman &>/dev/null; then DISTRO="arch"
   elif command -v apt-get &>/dev/null; then DISTRO="debian"
   elif command -v dnf &>/dev/null; then DISTRO="fedora"
   else echo "Distro nao suportada." && exit 1
   fi
-  echo "[INFO] Distro detectada: $DISTRO"
+  DISTRO_ID="$( . /etc/os-release 2>/dev/null && echo "$ID" )"
+  echo "[INFO] Distro detectada: $DISTRO (${DISTRO_ID:-desconhecida})"
 }
 
 # =============================================================================
@@ -76,15 +81,22 @@ install_base() {
       yay -S --noconfirm visual-studio-code-bin
       ;;
     debian)
-      # Garante repos online — remove cdrom e adiciona bookworm se ausente
-      sudo sed -i '/^deb cdrom:/d' /etc/apt/sources.list
-      if ! grep -q "deb.debian.org" /etc/apt/sources.list; then
-        cat <<'EOF' | sudo tee /etc/apt/sources.list > /dev/null
+      # Garante repos online — remove cdrom e adiciona bookworm se ausente.
+      # SO no Debian de verdade: no Ubuntu o /etc/apt/sources.list e vazio de
+      # proposito (os repos vivem em sources.list.d/ubuntu.sources, deb822), o
+      # grep abaixo nao acha nada e isto sobrescrevia o arquivo com bookworm
+      # numa maquina noble — misturando as duas arvores. Falha alto por falta de
+      # chave GPG; com a chave presente, instalaria pacote Debian sobre Ubuntu.
+      if [ "$DISTRO_ID" = "debian" ]; then
+        sudo sed -i '/^deb cdrom:/d' /etc/apt/sources.list
+        if ! grep -q "deb.debian.org" /etc/apt/sources.list; then
+          cat <<'EOF' | sudo tee /etc/apt/sources.list > /dev/null
 deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
 deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
 deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware
 EOF
-        echo "  [OK] sources.list atualizado para repositorios online."
+          echo "  [OK] sources.list atualizado para repositorios online."
+        fi
       fi
       sudo apt update && sudo apt upgrade -y
       sudo apt install -y git curl zsh neofetch cmatrix flatpak
@@ -156,16 +168,30 @@ install_brave_origin() {
   fi
   case $DISTRO in
     debian)
-      # canal oficial: laptop-updates.brave.com/latest/origin serve o pacote da
-      # release corrente; o endpoint linux64 entrega .deb
-      local DEB=/tmp/brave-origin.deb
-      if curl -fsSL "https://laptop-updates.brave.com/latest/origin/linux64" -o "$DEB" 2>/dev/null \
-         && sudo apt install -y "$DEB"; then
-        echo "  [OK] Brave Origin instalado via .deb oficial."
-        rm -f "$DEB"
+      # laptop-updates.brave.com/latest/origin/<qualquer coisa> serve o
+      # instalador WINDOWS — linux64, linux, amd64 e deb todos redirecionam para
+      # BraveOriginSetup.exe com HTTP 200. Como o status é 200, o `curl -f` não
+      # acusa nada e o apt recebia um PE32 chamado .deb ("Invalid archive
+      # signature"). Não existe caminho Linux nesse canal.
+      #
+      # O caminho Linux é o repo apt oficial, onde brave-origin é pacote de
+      # verdade (Depends: brave-keyring) e quem confere a assinatura é o apt —
+      # em vez de nós conferirmos content-type na mão.
+      local KEYRING=/usr/share/keyrings/brave-browser-archive-keyring.gpg
+      local LISTA=/etc/apt/sources.list.d/brave-browser-release.list
+      sudo curl -fsSL "https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg" \
+        -o "$KEYRING" || {
+        echo "  [AVISO] falha ao baixar o keyring da Brave — repo nao configurado."
+        echo "          Instale manualmente de https://brave.com/origin/ e re-execute."
+        return 1
+      }
+      echo "deb [signed-by=$KEYRING arch=amd64] https://brave-browser-apt-release.s3.brave.com/ stable main" \
+        | sudo tee "$LISTA" >/dev/null
+      sudo apt update || { echo "  [AVISO] apt update falhou apos add do repo Brave."; return 1; }
+      if sudo apt install -y brave-origin; then
+        echo "  [OK] Brave Origin instalado do repo apt oficial."
       else
-        rm -f "$DEB"
-        echo "  [AVISO] download direto falhou — endpoint pode ter mudado."
+        echo "  [AVISO] apt nao instalou brave-origin."
         echo "          Instale manualmente de https://brave.com/origin/ e re-execute."
         return 1
       fi
@@ -199,16 +225,20 @@ install_java() {
   case $DISTRO in
     arch)    sudo pacman -S --noconfirm --needed jdk21-openjdk ;;
     debian)
-      # openjdk-21 requer backports no Bookworm
-      if ! apt-cache show openjdk-21-jdk &>/dev/null; then
+      # openjdk-21 requer backports no Bookworm. No Ubuntu ele esta no repo
+      # padrao e "-t bookworm-backports" nem existe — por isso o alvo do apt so
+      # entra quando os backports foram de fato adicionados.
+      local APT_ALVO=()
+      if [ "$DISTRO_ID" = "debian" ] && ! apt-cache show openjdk-21-jdk &>/dev/null; then
         BACKPORTS="deb http://deb.debian.org/debian bookworm-backports main contrib non-free"
         if ! grep -qF "bookworm-backports" /etc/apt/sources.list; then
           echo "$BACKPORTS" | sudo tee -a /etc/apt/sources.list > /dev/null
           sudo apt update
         fi
+        APT_ALVO=(-t bookworm-backports)
       fi
       if apt-cache show openjdk-21-jdk &>/dev/null; then
-        sudo apt install -y -t bookworm-backports openjdk-21-jdk
+        sudo apt install -y "${APT_ALVO[@]}" openjdk-21-jdk
       else
         echo "  [AVISO] openjdk-21 nao disponivel — instalando openjdk-17."
         sudo apt install -y openjdk-17-jdk
