@@ -190,6 +190,9 @@ install_brave_origin() {
       sudo apt update || { echo "  [AVISO] apt update falhou apos add do repo Brave."; return 1; }
       if sudo apt install -y brave-origin; then
         echo "  [OK] Brave Origin instalado do repo apt oficial."
+        # a policy tem que existir ANTES do primeiro run: o Brave le
+        # /etc/brave/policies/managed na inicializacao
+        policy_bitwarden_brave
       else
         echo "  [AVISO] apt nao instalou brave-origin."
         echo "          Instale manualmente de https://brave.com/origin/ e re-execute."
@@ -376,6 +379,59 @@ setup_git_ssh() {
 # 7. FIREFOX — privacidade, segurança e Bitwarden
 # =============================================================================
 
+# --- Bitwarden por policy, nos dois navegadores -----------------------------
+# Largar o XPI em <perfil>/extensions instala mas NAO fixa: o botao nasce
+# escondido na gaveta de extensoes e o operador tem que fixar a mao. Policy
+# resolve as duas coisas de uma vez e e o unico caminho que existe no Brave,
+# onde nao da para largar arquivo no perfil.
+_BITWARDEN_FF_ID="{446900e4-71c2-419f-a6a7-df9c091e268b}"
+_BITWARDEN_CRX_ID="nngceckbapebfimnlniiiahkandclblb"
+
+policy_bitwarden_firefox() {
+  sudo mkdir -p /etc/firefox/policies
+  sudo tee /etc/firefox/policies/policies.json >/dev/null <<EOF
+{
+  "policies": {
+    "ExtensionSettings": {
+      "$_BITWARDEN_FF_ID": {
+        "installation_mode": "force_installed",
+        "install_url": "https://addons.mozilla.org/firefox/downloads/latest/bitwarden-password-manager/latest.xpi",
+        "default_area": "navbar"
+      }
+    }
+  }
+}
+EOF
+  # O Firefox do Ubuntu e snap e so le /etc/firefox se o plug etc-firefox
+  # estiver conectado. Desconectado, a policy e ignorada EM SILENCIO — por isso
+  # a checagem e o aviso nomeado (U2). Em snap connections, plug desconectado
+  # aparece com "-" na coluna Slot.
+  if command -v snap &>/dev/null && snap list firefox &>/dev/null; then
+    if snap connections firefox 2>/dev/null | awk '$2=="firefox:etc-firefox" && $3=="-"' | grep -q .; then
+      sudo snap connect firefox:etc-firefox 2>/dev/null \
+        && echo "  [OK] plug firefox:etc-firefox conectado." \
+        || echo "  [AVISO] firefox:etc-firefox desconectado — a policy sera IGNORADA pelo snap."
+    fi
+  fi
+  echo "  [OK] Bitwarden por policy no Firefox (instala e fixa na navbar)."
+}
+
+policy_bitwarden_brave() {
+  sudo mkdir -p /etc/brave/policies/managed
+  sudo tee /etc/brave/policies/managed/bitwarden.json >/dev/null <<EOF
+{
+  "ExtensionSettings": {
+    "$_BITWARDEN_CRX_ID": {
+      "installation_mode": "force_installed",
+      "update_url": "https://clients2.google.com/service/update2/crx",
+      "toolbar_pin": "force_pinned"
+    }
+  }
+}
+EOF
+  echo "  [OK] Bitwarden por policy no Brave (instala e fixa na toolbar)."
+}
+
 # Detecta qual Firefox esta disponivel e retorna o comando para abri-lo
 _firefox_cmd() {
   if command -v firefox &>/dev/null; then
@@ -448,17 +504,8 @@ setup_firefox() {
   fi
   echo "  [OK] user.js aplicado (privacidade + seguranca)."
 
-  # --- Bitwarden — instala XPI direto no perfil (sem polkit/policies) ---
-  local BITWARDEN_ID="{446900e4-71c2-419f-a6a7-df9c091e268b}"
-  local BITWARDEN_URL="https://addons.mozilla.org/firefox/downloads/latest/bitwarden-password-manager/latest.xpi"
-  local EXT_DIR="$FIREFOX_PROFILE/extensions"
-  mkdir -p "$EXT_DIR"
-  echo "  Baixando Bitwarden..."
-  if curl -fsSL "$BITWARDEN_URL" -o "$EXT_DIR/$BITWARDEN_ID.xpi"; then
-    echo "  [OK] Bitwarden instalado no perfil — sera ativado ao abrir o Firefox."
-  else
-    echo "  [AVISO] Falha ao baixar Bitwarden. Sera aberto o link de instalacao no login-firefox."
-  fi
+  # --- Bitwarden — policy (instala E fixa na navbar; ver policy_bitwarden_*) ---
+  policy_bitwarden_firefox
 
   echo ""
   echo "  ============================================================"
@@ -527,41 +574,22 @@ login_firefox() {
     return 1
   fi
 
-  local BITWARDEN_ID="{446900e4-71c2-419f-a6a7-df9c091e268b}"
-  local BITWARDEN_AMO="https://addons.mozilla.org/pt-BR/firefox/addon/bitwarden-password-manager/"
-  local FIREFOX_PROFILE
-  FIREFOX_PROFILE=$(_firefox_profile)
-
-  # Verifica se XPI foi instalado no perfil
-  if [ -n "$FIREFOX_PROFILE" ] && [ -f "$FIREFOX_PROFILE/extensions/$BITWARDEN_ID.xpi" ]; then
-    # XPI presente — abre Firefox normalmente, extensao sera ativada
-    $FF_CMD &>/dev/null &
-    echo ""
-    echo "  ============================================================"
-    echo "  Firefox aberto. O icone do Bitwarden aparecera na toolbar."
-    echo ""
-    echo "  O QUE FAZER:"
-    echo "  1. Clique no icone do Bitwarden na toolbar"
-    echo "  2. Clique em 'Criar conta' ou 'Fazer login'"
-    echo "  3. Entre com seu email e senha mestre"
-    echo "  4. Se o cofre nao sincronizar, clique em 'Sincronizar cofre'"
-    echo "  5. Fixe o icone: clique no quebra-cabeca (extensoes) > Bitwarden > fixar na toolbar"
-    echo "  ============================================================"
-  else
-    # XPI ausente — abre direto na pagina de instalacao (1 clique)
-    $FF_CMD "$BITWARDEN_AMO" &>/dev/null &
-    echo ""
-    echo "  ============================================================"
-    echo "  Firefox aberto na pagina do Bitwarden na AMO."
-    echo ""
-    echo "  O QUE FAZER:"
-    echo "  1. Clique em 'Adicionar ao Firefox' e confirme a permissao"
-    echo "  2. Clique no icone do Bitwarden que apareceu na toolbar"
-    echo "  3. Entre com seu email e senha mestre"
-    echo "  4. Se o cofre nao sincronizar, clique em 'Sincronizar cofre'"
-    echo "  5. Fixe o icone: clique no quebra-cabeca (extensoes) > Bitwarden > fixar na toolbar"
-    echo "  ============================================================"
-  fi
+  # A policy (policy_bitwarden_firefox) instala e fixa na navbar no startup do
+  # Firefox — nao ha mais passo de "fixe o icone" nem pagina da AMO para abrir.
+  $FF_CMD &>/dev/null &
+  echo ""
+  echo "  ============================================================"
+  echo "  Firefox aberto. O icone do Bitwarden ja esta na toolbar."
+  echo ""
+  echo "  O QUE FAZER:"
+  echo "  1. Clique no icone do Bitwarden na toolbar"
+  echo "  2. Clique em 'Criar conta' ou 'Fazer login'"
+  echo "  3. Entre com seu email e senha mestre"
+  echo "  4. Se o cofre nao sincronizar, clique em 'Sincronizar cofre'"
+  echo ""
+  echo "  Se o icone NAO estiver la, a policy nao foi aplicada — procure o"
+  echo "  [AVISO] de firefox:etc-firefox no log da fase configurar."
+  echo "  ============================================================"
 
   pause "Pressione ENTER quando estiver logado no Bitwarden"
 }
