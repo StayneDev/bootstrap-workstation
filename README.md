@@ -19,6 +19,8 @@
 
 - `curl` — pré-instalado na maioria das distros modernas
   - Fallback: `sudo apt install curl` / `sudo pacman -S curl` / `sudo dnf install curl`
+- `tar` — parte do sistema base nas três distros; usado pelo one-liner para
+  buscar os assets (`perfis/*.perfil`, dotfiles) que não viajam no stream
 - Usuário comum com `sudo` disponível — não executar como root
 
 ## Setup
@@ -63,7 +65,7 @@ desktop recém-formatado, **sem suspensão/soneca**, com snapshot `recem-formata
 3. Abrir um terminal na VM e rodar **o comando mínimo** (branch em teste):
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/StayneDev/bootstrap-workstation/develop/machine/setup.sh)
+BOOTSTRAP_REF=develop bash <(curl -fsSL https://raw.githubusercontent.com/StayneDev/bootstrap-workstation/develop/machine/setup.sh)
 ```
 
 4. Escolher o perfil no menu e seguir a condução. O critério de entrega é o da

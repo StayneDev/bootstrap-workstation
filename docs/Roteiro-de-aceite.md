@@ -16,7 +16,7 @@ Console: web do Proxmox → VM 303 → login `makina` / `bootstrap`.
 Num terminal da VM:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/StayneDev/bootstrap-workstation/develop/machine/setup.sh)
+BOOTSTRAP_REF=develop bash <(curl -fsSL https://raw.githubusercontent.com/StayneDev/bootstrap-workstation/develop/machine/setup.sh)
 ```
 
 - [ ] O menu de perfis aparece com os 4 (infra / minimo / pessoal / profissional)
@@ -78,7 +78,7 @@ bash ~/repos/orquestrador-normativo-agente-maquinaria/scripts/verificador-de-for
 ## 7. Idempotência (o retry que aprovamos)
 
 ```bash
-cd ~ && bash <(curl -fsSL https://raw.githubusercontent.com/StayneDev/bootstrap-workstation/develop/machine/setup.sh)
+cd ~ && BOOTSTRAP_REF=develop bash <(curl -fsSL https://raw.githubusercontent.com/StayneDev/bootstrap-workstation/develop/machine/setup.sh)
 ```
 
 - [ ] **Não pergunta nada** (lê as respostas gravadas) e o que está feito diz "ok"/já instalado — rápido, sem refazer trabalho

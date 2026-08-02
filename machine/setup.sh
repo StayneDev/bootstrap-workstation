@@ -11,8 +11,34 @@ if [ "$EUID" -eq 0 ]; then
   exit 1
 fi
 
+# --- Origem dos assets (clonado x streamed) ---
+# Clonado: perfis.sh, perfis/*.perfil e os assets do firefox/vscode estão ao
+# lado deste script. Streamed (`bash <(curl ...)`): BASH_SOURCE é um FIFO
+# (/dev/fd/NN) e não existe diretório irmão — sem isto o source abaixo morre
+# sob `set -e`, o FIFO fecha e o curl da chamada reporta "(23) Failure writing
+# output to destination", que esconde a causa real.
+#
+# O tarball do ref traz TODOS os assets de uma vez (~28K), então não há lista
+# de arquivos aqui para divergir do que o repo realmente tem (um perfil novo
+# entra sozinho). BOOTSTRAP_REF deve casar com o ref do one-liner.
+BOOTSTRAP_REF="${BOOTSTRAP_REF:-main}"
+DOTFILES_RAW="https://raw.githubusercontent.com/StayneDev/bootstrap-workstation/$BOOTSTRAP_REF/machine"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || true)"
+
+if [ ! -f "$SCRIPT_DIR/perfis.sh" ]; then
+  echo "[INFO] Modo streamed — baixando assets do ref '$BOOTSTRAP_REF'"
+  BOOTSTRAP_TMP="$(mktemp -d)"
+  trap 'rm -rf "$BOOTSTRAP_TMP"' EXIT
+  curl -fsSL "https://codeload.github.com/StayneDev/bootstrap-workstation/tar.gz/refs/heads/$BOOTSTRAP_REF" \
+    | tar xz -C "$BOOTSTRAP_TMP" --strip-components=1 \
+    || { echo "[ERRO] Falha ao baixar os assets do ref '$BOOTSTRAP_REF'." >&2; exit 1; }
+  SCRIPT_DIR="$BOOTSTRAP_TMP/machine"
+  [ -f "$SCRIPT_DIR/perfis.sh" ] \
+    || { echo "[ERRO] perfis.sh ausente no tarball de '$BOOTSTRAP_REF'." >&2; exit 1; }
+fi
+
 # --- Perfis, respostas e conferência (#21, #22, #24) ---
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/perfis.sh"
+source "$SCRIPT_DIR/perfis.sh"
 
 # --- Deteccao de distro ---
 detect_distro() {
@@ -384,8 +410,7 @@ setup_firefox() {
   echo "  [INFO] Perfil: $FIREFOX_PROFILE"
 
   # --- user.js — perfil de privacidade e seguranca ---
-  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  DOTFILES_RAW="https://raw.githubusercontent.com/StayneDev/bootstrap-workstation/main/machine"
+  # SCRIPT_DIR e DOTFILES_RAW vêm do topo, já resolvidos para o ref corrente.
   if [ -f "$SCRIPT_DIR/firefox-user.js" ]; then
     cp "$SCRIPT_DIR/firefox-user.js" "$FIREFOX_PROFILE/user.js"
   else
@@ -576,9 +601,8 @@ runtime_logins() {
 setup_vscode() {
   echo -e "\n[vscode] Aplicando settings e instalando extensões..."
 
-  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  # SCRIPT_DIR e DOTFILES_RAW vêm do topo, já resolvidos para o ref corrente.
   VSCODE_SETTINGS_DIR="$HOME/.config/Code/User"
-  DOTFILES_RAW="https://raw.githubusercontent.com/StayneDev/bootstrap-workstation/main/machine"
   mkdir -p "$VSCODE_SETTINGS_DIR"
 
   # settings.json — local ou fallback via curl
