@@ -664,13 +664,27 @@ login_claude() {
     echo "  [AVISO] Claude Code nao encontrado. Instale primeiro com --node."
     return 1
   fi
+  # `--dangerously-skip-permissions` estava aqui e saiu por dois motivos: a regra
+  # global do operador diz "never use dangerously-skip-permissions flag", e num
+  # `/login` ele nao faz nada — login nao executa ferramenta. Flag proibido,
+  # usado a toa, em todo bootstrap de toda maquina (achado no aceite #26).
+  #
+  # O guarda de TTY existe porque `claude /login` e uma TUI interativa: sob stdin
+  # que nao e terminal (o caminho headless `--perfil X`) ela nunca retorna e
+  # pendura o run inteiro, sem dizer por que. Recusar alto e conduzir vale mais.
+  if [ ! -t 0 ]; then
+    echo ""
+    echo "  [AVISO] login do Claude Code exige terminal interativo — pulando."
+    echo "          rode depois, num terminal de verdade:  claude /login"
+    return 0
+  fi
   echo ""
   echo "  ============================================================"
   echo "  Sera aberto o fluxo de autenticacao no browser."
   echo "  >> Faca login com sua conta Anthropic"
   echo "  >> Autorize o acesso quando solicitado"
   echo "  ============================================================"
-  claude --dangerously-skip-permissions /login 2>/dev/null || true
+  claude /login || true
   pause "Pressione ENTER quando o login estiver concluido"
 }
 
