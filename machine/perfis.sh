@@ -141,11 +141,19 @@ prova_passo() { # o comando que PROVA cada passo — instalado não é rodado, �
     discord)       flatpak list --app 2>/dev/null | grep -q com.discordapp.Discord ;;
     steam)         flatpak list --app 2>/dev/null | grep -q com.valvesoftware.Steam ;;
     brave_origin)  command -v brave-origin &>/dev/null || command -v brave-browser-origin &>/dev/null ;;
-    terminal)      [ -d "$HOME/.oh-my-zsh" ] && [ -f "$HOME/.zshrc" ] ;;
+    # o shell de LOGIN entra na prova porque era exatamente o que faltava: o
+    # chsh falhava por PAM, o passo imprimia [OK] e a conferência dizia "ok"
+    # com o usuário ainda em bash (aceite #26, 2026-08-02).
+    terminal)      [ -d "$HOME/.oh-my-zsh" ] && [ -f "$HOME/.zshrc" ] \
+                   && [ "$(getent passwd "$USER" | cut -d: -f7)" = "$(command -v zsh)" ] ;;
     vscode)        [ -f "$HOME/.config/Code/User/settings.json" ] ;;
     firefox)       [ -n "$(_firefox_profile)" ] ;;
     login_firefox) return 0 ;;  # login é do operador — não constatável sem a conta
-    git_ssh)       ssh -T git@github.com -o StrictHostKeyChecking=no -o BatchMode=yes 2>&1 | grep -q "successfully authenticated" ;;
+    # `</dev/null` NÃO é decoração: prova_passo roda dentro do `while read` de
+    # conferir_perfil, e o ssh lê stdin — sem isto ele ENGOLE o resto da lista de
+    # passos e o loop termina aqui. A conferência checava 6 de 14 passos do
+    # `pessoal` e ainda assim imprimia "confere: tudo" (aceite #26, 2026-08-02).
+    git_ssh)       ssh -T git@github.com -o StrictHostKeyChecking=no -o BatchMode=yes </dev/null 2>&1 | grep -q "successfully authenticated" ;;
     claude_login)  return 0 ;;  # idem
     login_discord) return 0 ;;  # idem
     login_steam)   return 0 ;;  # idem
@@ -159,16 +167,32 @@ prova_passo() { # o comando que PROVA cada passo — instalado não é rodado, �
 conferir_perfil() { # $1=nome → conferência completa; sai 1 com divergência
   local perfil="$1" falhas=0 linha fase passo
   echo -e "\n══════ [$perfil] CONFERÊNCIA — declarado × real ══════"
-  while read -r fase passo; do
+  # A lista é materializada ANTES do loop, de propósito. Alimentar o `while read`
+  # por stdin punha a lista e as provas disputando o mesmo descritor: bastava uma
+  # prova que lê stdin (o ssh do git_ssh) para engolir os passos seguintes, e o
+  # loop terminava cedo declarando sucesso — cego para 8 dos 14 passos do
+  # `pessoal`. Com array, prova que lê stdin não tem como truncar a conferência.
+  local declarados=(); local n=0
+  while IFS= read -r linha; do declarados+=("$linha"); done < <(resolver_perfil "$perfil")
+  for linha in "${declarados[@]}"; do
+    read -r fase passo <<<"$linha"
     [ -z "$passo" ] && continue
+    n=$((n+1))
     if prova_passo "$passo"; then
       echo "  [ok]        $passo"
     else
       echo "  [DIVERGE]   $passo — declarado no perfil, não constatado na máquina"
       falhas=$((falhas+1))
     fi
-  done < <(resolver_perfil "$perfil")
+  done
   echo ""
+  # conferido × declarado: um número menor aqui é conferência cega, e cega é
+  # pior que vermelha — ela aprova o que não olhou.
+  if [ "$n" -ne "${#declarados[@]}" ]; then
+    echo "── [$perfil] CONFERÊNCIA INCOMPLETA: $n de ${#declarados[@]} passos conferidos ──"
+    return 1
+  fi
+  echo "  ($n de ${#declarados[@]} passos declarados foram conferidos)"
   if [ "$falhas" -eq 0 ]; then
     echo "── [$perfil] confere: tudo que o manifesto declara está na máquina ──"
   else
