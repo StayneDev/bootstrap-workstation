@@ -63,7 +63,12 @@ colher_divergentes() { # pergunta só o que ainda não tem resposta
 menu_perfil() {
   local escolhido; escolhido=$(resposta perfil)
   if [ -n "$escolhido" ]; then
-    echo "[perfil] respostas existentes: perfil '$escolhido' ($RESPOSTAS) — não pergunto de novo (U8)"
+    # `>&2` porque o VALOR desta função é capturado com $( ) pelo dispatch: em
+    # stdout, a mensagem virava parte do nome do perfil e a SEGUNDA execução do
+    # script morria com "'<mensagem>\npessoal' não existe". Toda a interação
+    # abaixo já vai para stderr — só esta linha ficara de fora, e era a única no
+    # caminho da re-execução, que é justamente o que o README promete ser seguro.
+    echo "[perfil] respostas existentes: perfil '$escolhido' ($RESPOSTAS) — não pergunto de novo (U8)" >&2
     echo "$escolhido"; return 0
   fi
   echo "" >&2
