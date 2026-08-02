@@ -70,7 +70,7 @@ install_base() {
         tailscale \
         ttf-liberation ttf-nerd-fonts-symbols-common noto-fonts noto-fonts-emoji \
         power-profiles-daemon wireplumber \
-        flatpak
+        flatpak xclip wl-clipboard
       # yay
       if ! command -v yay &>/dev/null; then
         sudo pacman -S --noconfirm --needed base-devel
@@ -99,7 +99,9 @@ EOF
         fi
       fi
       sudo apt update && sudo apt upgrade -y
-      sudo apt install -y git curl zsh neofetch cmatrix flatpak
+      # xclip/wl-clipboard: a fase autenticar imprime a chave SSH e promete
+      # clipboard. Sem eles a promessa e falsa numa maquina virgem.
+      sudo apt install -y git curl zsh neofetch cmatrix flatpak xclip wl-clipboard
       # VSCode — usa curl (wget pode nao estar disponivel)
       curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | sudo tee /usr/share/keyrings/microsoft.gpg > /dev/null
       echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list
@@ -116,7 +118,7 @@ EOF
       ;;
     fedora)
       sudo dnf upgrade -y
-      sudo dnf install -y git curl zsh neofetch cmatrix flatpak
+      sudo dnf install -y git curl zsh neofetch cmatrix flatpak xclip wl-clipboard
       # VSCode
       sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
       sudo tee /etc/yum.repos.d/vscode.repo > /dev/null <<EOF
@@ -280,9 +282,14 @@ setup_terminal() {
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
   fi
 
-  # Shell padrao para zsh
-  if [ "$(getent passwd $USER | cut -d: -f7)" != "$(which zsh)" ]; then
-    chsh -s "$(which zsh)"
+  # Shell padrao para zsh.
+  # `chsh` sem sudo passa por PAM e PEDE A SENHA — no meio do run, sem anuncio.
+  # Em stdin nao-interativo ele falha com "PAM: Authentication failure", e o
+  # [OK] logo abaixo saia mesmo assim: o usuario terminava o bootstrap em bash
+  # achando que estava em zsh (aceite #26, 2026-08-02). sudo ja e pre-requisito
+  # de tudo aqui, entao usa-lo remove o prompt em vez de adicionar um.
+  if [ "$(getent passwd "$USER" | cut -d: -f7)" != "$(command -v zsh)" ]; then
+    sudo chsh -s "$(command -v zsh)" "$USER" || true
   fi
 
   # .zshrc
@@ -303,20 +310,34 @@ export NVM_DIR="$HOME/.nvm"
 export PATH="$HOME/.local/bin:$PATH"
 EOF
 
-  echo "[OK] Terminal configurado. Reinicie o terminal para aplicar."
+  # Constata em vez de declarar: o passo so diz OK sobre o que sobreviveu.
+  if [ "$(getent passwd "$USER" | cut -d: -f7)" = "$(command -v zsh)" ]; then
+    echo "[OK] Terminal configurado (shell de login = zsh). Reinicie o terminal para aplicar."
+  else
+    echo "  [AVISO] Oh My Zsh e .zshrc prontos, mas o shell de LOGIN continua"
+    echo "          $(getent passwd "$USER" | cut -d: -f7) — o chsh nao pegou."
+    echo "          Resolve com: sudo chsh -s \"\$(command -v zsh)\" \"$USER\""
+  fi
 }
 
 # =============================================================================
 # UTILITARIO — copia para clipboard (Wayland ou X11)
 # =============================================================================
+# Devolve 0 se COPIOU de fato, 1 se nao havia ferramenta. Quem chama decide o
+# que dizer — antes esta funcao falhava em silencio e a mensagem afirmava
+# "ja copiada para o clipboard" numa maquina virgem, onde nenhum dos tres
+# existe. O operador dava Ctrl+V e nao vinha nada (aceite #26, 2026-08-02).
 copy_to_clipboard() {
-  if command -v wl-copy &>/dev/null; then
-    echo "$1" | wl-copy
+  if [ -n "${WAYLAND_DISPLAY:-}" ] && command -v wl-copy &>/dev/null; then
+    printf '%s' "$1" | wl-copy && return 0
   elif command -v xclip &>/dev/null; then
-    echo "$1" | xclip -selection clipboard
+    printf '%s' "$1" | xclip -selection clipboard && return 0
   elif command -v xsel &>/dev/null; then
-    echo "$1" | xsel --clipboard --input
+    printf '%s' "$1" | xsel --clipboard --input && return 0
+  elif command -v wl-copy &>/dev/null; then
+    printf '%s' "$1" | wl-copy && return 0
   fi
+  return 1
 }
 
 # =============================================================================
@@ -352,11 +373,16 @@ setup_git_ssh() {
   fi
 
   PUB_KEY=$(cat "$HOME/.ssh/id_ed25519.pub")
-  copy_to_clipboard "$PUB_KEY"
+  local CLIP_MSG
+  if copy_to_clipboard "$PUB_KEY"; then
+    CLIP_MSG="ja copiada para o clipboard — cole com Ctrl+V"
+  else
+    CLIP_MSG="COPIE A MAO da linha abaixo (sem ferramenta de clipboard nesta maquina)"
+  fi
 
   echo ""
   echo "  ============================================================"
-  echo "  CHAVE SSH GERADA (ja copiada para o clipboard):"
+  echo "  CHAVE SSH GERADA ($CLIP_MSG):"
   echo "  ============================================================"
   echo "  $PUB_KEY"
   echo "  ============================================================"
@@ -471,6 +497,13 @@ setup_firefox() {
     return 1
   fi
 
+  # --- Bitwarden por policy ANTES de qualquer launch ---
+  # O Firefox le /etc/firefox/policies na INICIALIZACAO. Escrever a policy depois
+  # de abri-lo deixava a instalacao da extensao na dependencia de o operador
+  # fechar e reabrir — e o passo seguinte so pedia ENTER. Aqui funcionou por
+  # corrida de timing (aceite #26, 2026-08-02), o que e pior que falhar.
+  policy_bitwarden_firefox
+
   # Se perfil nao existe, abre Firefox para criar e aguarda
   local FIREFOX_PROFILE
   FIREFOX_PROFILE=$(_firefox_profile)
@@ -504,16 +537,11 @@ setup_firefox() {
   fi
   echo "  [OK] user.js aplicado (privacidade + seguranca)."
 
-  # --- Bitwarden — policy (instala E fixa na navbar; ver policy_bitwarden_*) ---
-  policy_bitwarden_firefox
-
   echo ""
   echo "  ============================================================"
-  echo "  Firefox configurado. Proximos passos:"
-  echo "  1. Execute: bash setup.sh --login-firefox"
-  echo "  2. Bitwarden abrira automaticamente — faca login"
-  echo "  3. Importe suas configuracoes/cofre se necessario"
-  echo "  4. So entao execute: bash setup.sh --github"
+  echo "  Firefox configurado — Bitwarden instalado e fixado na toolbar."
+  echo "  A fase 3 (autenticar) abre o Firefox para voce logar no cofre e"
+  echo "  so depois gera a chave SSH. Nao ha nada a rodar a mao aqui."
   echo "  ============================================================"
 }
 

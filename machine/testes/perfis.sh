@@ -64,10 +64,48 @@ else
 fi
 
 # ── 9. conferência: passo satisfeito diz ok (terminal com HOME preparado) ────
+# O `getent` é dublado porque a prova do terminal olha o shell de LOGIN, que é
+# fato da máquina que roda o teste — sem o dublê o caso passaria ou falharia
+# conforme o shell de quem executa, e teste que depende do host não prova nada.
 mkdir -p "$SB/home-conf/.oh-my-zsh" && touch "$SB/home-conf/.zshrc"
-saida=$(HOME="$SB/home-conf" bash -c "source '$SETUP'; conferir_perfil minimo" 2>&1)
+mkdir -p "$SB/bin-zsh"
+cat > "$SB/bin-zsh/getent" <<EOF
+#!/bin/sh
+echo "\$2:x:1000:1000::/home/\$2:$(command -v zsh || echo /usr/bin/zsh)"
+EOF
+chmod +x "$SB/bin-zsh/getent"
+saida=$(HOME="$SB/home-conf" PATH="$SB/bin-zsh:$PATH" bash -c "source '$SETUP'; conferir_perfil minimo" 2>&1)
 echo "$saida" | grep -q '\[ok\].*terminal' && ok "conferência constata o que existe" \
   || FALHA "conferência não viu o terminal presente: $saida"
+
+# ── 9b. shell de login em bash DIVERGE, mesmo com oh-my-zsh e .zshrc no lugar ─
+# É o caso que faltava: o chsh falhava por PAM, os dois arquivos existiam e a
+# conferência dizia "ok" com o operador ainda em bash (aceite #26).
+mkdir -p "$SB/bin-bash"
+cat > "$SB/bin-bash/getent" <<'EOF'
+#!/bin/sh
+echo "$2:x:1000:1000::/home/$2:/bin/bash"
+EOF
+chmod +x "$SB/bin-bash/getent"
+saida=$(HOME="$SB/home-conf" PATH="$SB/bin-bash:$PATH" bash -c "source '$SETUP'; conferir_perfil minimo" 2>&1)
+echo "$saida" | grep -q 'DIVERGE.*terminal' \
+  && ok "shell de login em bash diverge, apesar de oh-my-zsh e .zshrc presentes" \
+  || FALHA "conferência aprovou terminal com shell de login errado: $saida"
+
+# ── 9c. REGRESSÃO: prova que lê stdin não pode truncar a conferência ──────────
+# O `ssh -T` da prova do git_ssh comia o stdin do `while read` que percorria os
+# passos: 6 de 14 conferidos no `pessoal` e ainda assim "confere: tudo".
+# Conferência cega é pior que vermelha — aprova o que não olhou.
+saida=$(HOME="$SB/h-reg" bash -c "mkdir -p '$SB/h-reg'; source '$SETUP';
+  prova_passo(){ [ \"\$1\" = git_ssh ] && cat >/dev/null; return 0; }
+  conferir_perfil pessoal" </dev/null 2>&1)
+declarados=$(carrega "resolver_perfil pessoal" | grep -c .)
+conferidos=$(echo "$saida" | grep -c '^  \[ok\]')
+if [ "$conferidos" -eq "$declarados" ] && echo "$saida" | grep -q '\[ok\].*tailscale'; then
+  ok "prova que consome stdin não trunca a conferência ($conferidos de $declarados)"
+else
+  FALHA "conferência truncou: $conferidos de $declarados conferidos"
+fi
 
 # ── 10. passo desconhecido no manifesto recusa ───────────────────────────────
 saida=$(carrega "executa_passo inexistente"); rc=$?
