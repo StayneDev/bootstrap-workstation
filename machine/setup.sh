@@ -56,6 +56,50 @@ detect_distro() {
 }
 
 # =============================================================================
+# DEPENDENCIAS DO MOTOR — as que o orquestrador invoca e ninguem instalava
+# =============================================================================
+# Achado no aceite #26, cruzando o que os scripts do motor chamam contra o que
+# este script instalava:
+#   python3    — a trava-de-forma E python. Sem ela o portao principal degrada em
+#                silencio ("mecanismo falhou — escrita liberada SEM validacao").
+#                Funcionava por sorte da distro, nao por desenho.
+#   gh         — o fecho-de-sprint recusa sem ele, e o PR virou obrigatorio no
+#                ADR-20260802. Sem gh, a passagem develop→main e inexecutavel.
+#   shellcheck — o lint da maquinaria NUNCA foi avaliado em maquina nenhuma.
+#   jq         — leitura de JSON.
+#
+# UMA POR VEZ, e tolerante: `gh` nao existe nos repos do Debian puro, e um
+# `apt install` com pacote ausente aborta sob `set -e` — o run inteiro morreria
+# por causa de uma ferramenta acessoria. Falta se ANUNCIA (U2), nao mata.
+instalar_dependencias_do_motor() {
+  echo -e "\n[provisionar] Dependencias do motor (python3, gh, shellcheck, jq)..."
+  local faltou=()
+  local p
+  for p in python3 gh shellcheck jq; do
+    local pkg="$p"
+    case "$DISTRO:$p" in
+      arch:gh)         pkg="github-cli" ;;
+      fedora:shellcheck) pkg="ShellCheck" ;;
+    esac
+    if command -v "$p" &>/dev/null; then
+      echo "  [ok] $p ja presente."
+      continue
+    fi
+    case $DISTRO in
+      arch)   sudo pacman -S --noconfirm --needed "$pkg" ;;
+      debian) sudo apt install -y "$pkg" ;;
+      fedora) sudo dnf install -y "$pkg" ;;
+    esac 2>/dev/null
+    command -v "$p" &>/dev/null && echo "  [OK] $p instalado." || faltou+=("$p")
+  done
+  if [ ${#faltou[@]} -gt 0 ]; then
+    echo "  [AVISO] nao instalei: ${faltou[*]}"
+    echo "          o motor funciona degradado — veja o que cada uma custa no"
+    echo "          cabecalho de instalar_dependencias_do_motor neste arquivo."
+  fi
+}
+
+# =============================================================================
 # 1. PACOTES BASE
 # =============================================================================
 install_base() {
@@ -101,7 +145,17 @@ EOF
       sudo apt update && sudo apt upgrade -y
       # xclip/wl-clipboard: a fase autenticar imprime a chave SSH e promete
       # clipboard. Sem eles a promessa e falsa numa maquina virgem.
+      # As quatro que o MOTOR precisa e que ninguem instalava (aceite #26):
+      #   python3    — a trava-de-forma E python. Sem ela o portao principal
+      #                degrada em silencio ("mecanismo falhou, escrita liberada").
+      #                Funcionava por sorte da distro, nao por desenho.
+      #   gh         — o fecho-de-sprint recusa sem ele; o PR obrigatorio pelo
+      #                ADR-20260802 ficava inexecutavel em maquina nova.
+      #   shellcheck — o lint da maquinaria NUNCA foi avaliado, em maquina
+      #                nenhuma. Ponto cego permanente ate agora.
+      #   jq         — leitura de JSON nos scripts.
       sudo apt install -y git curl zsh neofetch cmatrix flatpak xclip wl-clipboard
+      instalar_dependencias_do_motor
       # VSCode — usa curl (wget pode nao estar disponivel)
       curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | sudo tee /usr/share/keyrings/microsoft.gpg > /dev/null
       echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list
@@ -119,6 +173,7 @@ EOF
     fedora)
       sudo dnf upgrade -y
       sudo dnf install -y git curl zsh neofetch cmatrix flatpak xclip wl-clipboard
+      instalar_dependencias_do_motor
       # VSCode
       sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
       sudo tee /etc/yum.repos.d/vscode.repo > /dev/null <<EOF
@@ -134,6 +189,8 @@ EOF
       curl -fsSL https://tailscale.com/install.sh | sh
       ;;
   esac
+
+  [ "$DISTRO" = "arch" ] && instalar_dependencias_do_motor
 
   # Flatpak remote
   sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
