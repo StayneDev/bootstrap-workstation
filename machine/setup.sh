@@ -658,24 +658,38 @@ login_tailscale() {
   fi
 }
 
+# Devolve 0 quando a conta esta autenticada. `claude auth status` sai em JSON com
+# `loggedIn`, entao isto e CONSTATAVEL — nao precisa de fe.
+_claude_logado() {
+  command -v claude &>/dev/null || return 1
+  claude auth status 2>/dev/null | grep -q '"loggedIn": *true'
+}
+
 login_claude() {
   echo -e "\n[Claude Code] Iniciando login..."
   if ! command -v claude &>/dev/null; then
     echo "  [AVISO] Claude Code nao encontrado. Instale primeiro com --node."
     return 1
   fi
-  # `--dangerously-skip-permissions` estava aqui e saiu por dois motivos: a regra
-  # global do operador diz "never use dangerously-skip-permissions flag", e num
-  # `/login` ele nao faz nada — login nao executa ferramenta. Flag proibido,
-  # usado a toa, em todo bootstrap de toda maquina (achado no aceite #26).
-  #
-  # O guarda de TTY existe porque `claude /login` e uma TUI interativa: sob stdin
-  # que nao e terminal (o caminho headless `--perfil X`) ela nunca retorna e
-  # pendura o run inteiro, sem dizer por que. Recusar alto e conduzir vale mais.
+
+  # Idempotencia (U8): re-execucao nao reabre login de quem ja esta dentro.
+  if _claude_logado; then
+    echo "  [OK] ja autenticado ($(claude auth status 2>/dev/null | grep -oP '"email":\s*"\K[^"]+' || echo 'conta ativa'))."
+    return 0
+  fi
+
+  # AQUI ESTAVA O TRAVAMENTO. A linha era `claude /login`, e `/login` NAO e
+  # subcomando: a assinatura do CLI e `claude [options] [command] [prompt]`, entao
+  # `/login` caia como PROMPT e o binario abria a sessao interativa inteira com
+  # aquilo digitado. O bootstrap nao travava — ficava preso em primeiro plano
+  # dentro do REPL do Claude, e so voltava quando o operador saisse dele. Como
+  # todos os outros logins deste script jogam o app para segundo plano e pedem
+  # ENTER, este era o unico que tomava o terminal, e ninguem esperava isso.
+  # O comando dedicado existe: `claude auth login` (achado no aceite #26).
   if [ ! -t 0 ]; then
     echo ""
     echo "  [AVISO] login do Claude Code exige terminal interativo — pulando."
-    echo "          rode depois, num terminal de verdade:  claude /login"
+    echo "          rode depois, num terminal de verdade:  claude auth login"
     return 0
   fi
   echo ""
@@ -684,8 +698,15 @@ login_claude() {
   echo "  >> Faca login com sua conta Anthropic"
   echo "  >> Autorize o acesso quando solicitado"
   echo "  ============================================================"
-  claude /login || true
-  pause "Pressione ENTER quando o login estiver concluido"
+  claude auth login || true
+
+  # Constata em vez de perguntar: o ENTER do operador nao prova login nenhum.
+  if _claude_logado; then
+    echo "  [OK] autenticado."
+  else
+    echo '  [AVISO] claude auth status ainda diz que nao ha sessao.'
+    echo "          rode a mao quando puder:  claude auth login"
+  fi
 }
 
 runtime_logins() {

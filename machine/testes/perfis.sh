@@ -117,6 +117,17 @@ else
   FALHA "conferência truncou: $conferidos de $declarados conferidos"
 fi
 
+# ── 9d. a prova do claude_login constata, em vez de devolver 0 cego ──────────
+# Era `return 0` incondicional: a conferência dizia [ok] numa máquina que nunca
+# tinha visto uma conta Anthropic. `claude auth status` sai em JSON com
+# `loggedIn`, então dá para constatar — e sem o binário tem que DIVERGIR, nunca
+# passar por omissão (aceite #26).
+mkdir -p "$SB/bin-sem-claude"
+saida=$(HOME="$SB/home-conf" PATH="$SB/bin-sem-claude:/usr/bin:/bin" bash -c "source '$SETUP'; prova_passo claude_login && echo PASSOU || echo DIVERGIU" 2>&1)
+echo "$saida" | grep -q DIVERGIU \
+  && ok "claude_login diverge quando não há claude — não passa por omissão" \
+  || FALHA "claude_login passou sem o binário: $saida"
+
 # ── 10. passo desconhecido no manifesto recusa ───────────────────────────────
 saida=$(carrega "executa_passo inexistente"); rc=$?
 [ $rc -ne 0 ] && echo "$saida" | grep -q 'passo desconhecido' && ok "passo desconhecido recusa nomeando" \

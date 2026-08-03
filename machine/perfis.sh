@@ -159,7 +159,12 @@ prova_passo() { # o comando que PROVA cada passo — instalado não é rodado, �
     # passos e o loop termina aqui. A conferência checava 6 de 14 passos do
     # `pessoal` e ainda assim imprimia "confere: tudo" (aceite #26, 2026-08-02).
     git_ssh)       ssh -T git@github.com -o StrictHostKeyChecking=no -o BatchMode=yes </dev/null 2>&1 | grep -q "successfully authenticated" ;;
-    claude_login)  return 0 ;;  # idem
+    # DEIXOU de ser cego: `claude auth status` sai em JSON com `loggedIn`, então
+    # o login do Claude é constatável como qualquer outro passo. Era `return 0`
+    # incondicional sob a justificativa "login é do operador" — verdadeira para
+    # Bitwarden, Discord e Steam, falsa para este (aceite #26, 2026-08-03).
+    claude_login)  command -v claude &>/dev/null \
+                   && claude auth status </dev/null 2>/dev/null | grep -q '"loggedIn": *true' ;;
     login_discord) return 0 ;;  # idem
     login_steam)   return 0 ;;  # idem
     tailscale)     tailscale status &>/dev/null ;;
