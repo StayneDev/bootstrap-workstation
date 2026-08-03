@@ -168,8 +168,8 @@ prova_passo() { # o comando que PROVA cada passo — instalado não é rodado, �
     login_discord) return 0 ;;  # idem
     login_steam)   return 0 ;;  # idem
     tailscale)     tailscale status &>/dev/null ;;
-    claude_config) [ -d "$HOME/repos/orquestrador-normativo-agente-acervo/.git" ] && [ -d "$HOME/repos/orquestrador-normativo-agente-maquinaria/.git" ] ;;
-    clone_infra)   [ -d "$HOME/repos/bootstrap-infra/.git" ] ;;
+    claude_config) [ -d "$HOME/Documentos/repos/orquestrador-normativo-agente-acervo/.git" ] && [ -d "$HOME/Documentos/repos/orquestrador-normativo-agente-maquinaria/.git" ] ;;
+    clone_infra)   [ -d "$HOME/Documentos/repos/bootstrap-infra/.git" ] ;;
     *) return 1 ;;
   esac
 }
