@@ -214,8 +214,8 @@ install_brave_origin() {
 # =============================================================================
 clone_infra() {
   echo -e "\n[fechar] Clonando bootstrap-infra (privado — exige auth)..."
-  local INFRA_DIR="$HOME/repos/bootstrap-infra"
-  mkdir -p "$HOME/repos"
+  local INFRA_DIR="$HOME/Documentos/repos/bootstrap-infra"
+  mkdir -p "$HOME/Documentos/repos"
   if [ ! -d "$INFRA_DIR/.git" ]; then
     git clone git@github.com:StayneDev/bootstrap-infra.git "$INFRA_DIR"
   fi
@@ -737,10 +737,10 @@ setup_vscode() {
 # =============================================================================
 install_claude_config() {
   echo -e "\n[fechar] Configurando Claude Code (o par acervo + maquinaria)..."
-  local ACERVO_DIR="$HOME/repos/orquestrador-normativo-agente-acervo"
-  local MOTOR_DIR="$HOME/repos/orquestrador-normativo-agente-maquinaria"
+  local ACERVO_DIR="$HOME/Documentos/repos/orquestrador-normativo-agente-acervo"
+  local MOTOR_DIR="$HOME/Documentos/repos/orquestrador-normativo-agente-maquinaria"
   # repos privados — clone via SSH (requer --github feito antes)
-  mkdir -p "$HOME/repos"
+  mkdir -p "$HOME/Documentos/repos"
   if [ ! -d "$ACERVO_DIR/.git" ]; then
     git clone git@github.com:StayneDev/orquestrador-normativo-agente-acervo.git "$ACERVO_DIR"
   fi
