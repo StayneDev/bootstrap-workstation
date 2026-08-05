@@ -8,6 +8,10 @@ tags: [adr, antessala, bootstrap]
 
 # ADR-20260801 — Antessala: bootstrap reproduzível do par e da infra
 
+> **Superseditado em parte por `ADR-20260805-revogacao-do-par` (no repo `orquestrador-normativo-agente`), 2026-08-05.** Onde este nó diz **"o par"** — dois repositórios, `acervo` mais `maquinaria`, que a fase 4 clonava lado a lado —, hoje há **um repositório só**: `StayneDev/orquestrador-normativo-agente`. A decisão deste nó **sobrevive inteira**; o que caiu foi a topologia que ela pressupunha, e ela ficou **mais barata**, não mais cara: clonar um repo é estritamente mais simples que garantir a adjacência de dois no caminho relativo exato — adjacência que o `install.sh` do par tratava como *bootstrap incompleto, nunca estado válido*.
+>
+> Não se edita o corpo abaixo: decisão fechada não se reescreve, se supersede. Este bloco existe para que quem ler não execute instruções de um mundo que acabou. O que já foi corrigido no código: `machine/setup.sh` (`install_claude_config`), `machine/perfis.sh:171`, os dois roteiros de `docs/` e o `README`.
+
 **Este nó é a antessala em forma de artefato** — o desejo entra quebrado e é empurrado contra o real até sair um *como* que sobrevive. Está `proposto` e mutável; fica apto quando responder as quatro perguntas (*o que se quer · contra o que se bateu · o que sobreviveu · por que não os outros*), e **a passagem antessala → esteira é leitura do operador**, não deste texto. Mora no nº 3 porque estação vem antes de infra — é dela que o provisionamento roda — e porque o nº 3 é a metade que já meio-funciona; se a metade de infra amadurecer em ritmo próprio, **gradua** para ADR no `bootstrap-infra`, citando este.
 
 Sem `k` nem `escopo`: são campos da propagação do vault; aqui a esteira é a do produto. `Contexto → k` do vault equivale aqui a: isto é o **`destrava:`** do [[ADR-20260730-estratos-e-extracao]] — a produção que o episódio de amadurecimento prometeu destravar — e a fome (produto × vault) está cobrando exatamente este retorno.

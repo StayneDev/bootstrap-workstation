@@ -56,7 +56,7 @@ Esta fase é a espinha do teste, porque tudo que vem depois autentica a partir d
 ## 5. Fase 4 — fechar (o orquestrador chega)
 
 - [ ] Clona os dois repos privados sem pedir nada (a auth da fase 3 sustenta)
-- [ ] O `install.sh` do par roda e **verifica**: todos os `[ok]`, incluindo "8 ganchos ligados", "link do sistema", "verificador-de-maquinaria passa"
+- [ ] O `install.sh` roda e **verifica**: todos os `[ok]`, incluindo "9 ganchos ligados", "verificador-de-maquinaria passa"
 - [ ] A **conferência final** roda sozinha e fecha: `── [pessoal] confere: tudo que o manifesto declara está na máquina ──`
 
 ## 6. Claude funcionando COM o orquestrador (o fim da linha)
@@ -65,10 +65,10 @@ Abra um **terminal novo** (para o zsh e o PATH do nvm valerem):
 
 ```bash
 claude --version                                            # o binário responde
-grep -c 'orquestrador-normativo-agente-maquinaria/scripts/' ~/.claude/settings.json   # espera: 8
-ls -la ~/repos/orquestrador-normativo-agente-acervo/sistema  # symlink → maquinaria
-bash ~/repos/orquestrador-normativo-agente-maquinaria/scripts/verificador-de-maquinaria.sh
-bash ~/repos/orquestrador-normativo-agente-maquinaria/scripts/verificador-de-forma.sh
+grep -c 'orquestrador-normativo-agente/scripts/' ~/.claude/settings.json   # espera: 9
+ls -la ~/repos/orquestrador-normativo-agente/sistema  # symlink → maquinaria
+bash ~/repos/orquestrador-normativo-agente/scripts/verificador-de-maquinaria.sh
+bash ~/repos/orquestrador-normativo-agente/scripts/verificador-de-forma.sh
 ```
 
 - [ ] Verificadores verdes

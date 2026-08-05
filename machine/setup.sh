@@ -814,20 +814,20 @@ setup_vscode() {
 # 11. CLAUDE CONFIG (skills, settings — repo dedicado)
 # =============================================================================
 install_claude_config() {
-  echo -e "\n[fechar] Configurando Claude Code (o par acervo + maquinaria)..."
-  local ACERVO_DIR="$HOME/Documentos/repos/orquestrador-normativo-agente-acervo"
-  local MOTOR_DIR="$HOME/Documentos/repos/orquestrador-normativo-agente-maquinaria"
-  # repos privados — clone via SSH (requer --github feito antes)
+  echo -e "\n[fechar] Configurando Claude Code (orquestrador)..."
+  # Era um PAR de repos entre 2026-08-01 e 2026-08-05 — acervo mais maquinaria,
+  # que precisavam cair lado a lado no caminho relativo exato. A divisão foi
+  # revogada (ADR-20260805-revogacao-do-par, no repo do orquestrador) e clonar
+  # um repo é estritamente mais simples que garantir a adjacência de dois: era
+  # essa adjacência que o `install.sh` do par tratava como bootstrap incompleto.
+  local ORQ_DIR="$HOME/Documentos/repos/orquestrador-normativo-agente"
+  # repo privado — clone via SSH (requer --github feito antes)
   mkdir -p "$HOME/Documentos/repos"
-  if [ ! -d "$ACERVO_DIR/.git" ]; then
-    git clone git@github.com:StayneDev/orquestrador-normativo-agente-acervo.git "$ACERVO_DIR"
+  if [ ! -d "$ORQ_DIR/.git" ]; then
+    git clone git@github.com:StayneDev/orquestrador-normativo-agente.git "$ORQ_DIR"
   fi
-  if [ ! -d "$MOTOR_DIR/.git" ]; then
-    git clone git@github.com:StayneDev/orquestrador-normativo-agente-maquinaria.git "$MOTOR_DIR"
-  fi
-  # o install mora na MAQUINARIA e instala o par (ADR-20260730-estratos-e-extracao)
-  bash "$MOTOR_DIR/install.sh"
-  echo "  [OK] Claude config (par) instalado."
+  bash "$ORQ_DIR/install.sh"
+  echo "  [OK] Orquestrador instalado."
 }
 
 # =============================================================================

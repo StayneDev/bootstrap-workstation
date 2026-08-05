@@ -46,7 +46,7 @@ comando que resolve.
 
 | Perfil | O que entrega |
 |---|---|
-| `minimo` | base + terminal + o par do orquestrador clonado e ligado (aparece em todos) |
+| `minimo` | base + terminal + o orquestrador clonado e ligado (aparece em todos) |
 | `pessoal` | minimo + Discord, Steam, Brave Origin |
 | `profissional` | minimo + Java, VSCode, sshpilot, Brave Origin — sem programas pessoais |
 | `infra` | minimo + posto de controle da infra (clona o `bootstrap-infra` privado) |
@@ -85,7 +85,7 @@ eval "$SETUP" --terminal    # Zsh + Oh My Zsh + tema bira
 eval "$SETUP" --github      # git config + chave SSH + adicionar no GitHub
 eval "$SETUP" --firefox     # privacidade + Bitwarden
 eval "$SETUP" --vscode      # settings + extensões
-eval "$SETUP" --claude      # orquestrador-normativo-agente-acervo (skills e settings)
+eval "$SETUP" --claude      # orquestrador-normativo-agente (skills e settings)
 ```
 
 ### Logins
