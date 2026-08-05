@@ -1,7 +1,48 @@
 # Roteiro — segunda máquina (o orquestrador já existe)
 
+> ## Migração obrigatória, para toda máquina instalada antes de 2026-08-05
+>
+> A divisão em dois repositórios foi revogada (`ADR-20260805-revogacao-do-par`). Máquina que já
+> sincronizava **não quebra**, e é importante saber por quê antes de correr: ela puxa o monorepo
+> normalmente (o GitHub redireciona o nome antigo), os ganchos continuam apontando para o clone
+> antigo de `…-maquinaria`, que continua existindo no disco, e **os portões seguem funcionando**.
+> O commit trivial passa — medido, não suposto.
+>
+> O que ela fica é **velha, com duas cópias da maquinaria, e a que roda não é a versionada.**
+> Consequências reais, todas medidas em sandbox:
+>
+> - O `verificador-de-forma` acusa **2 nós bloqueados** que não são defeito: `template/README.md` e
+>   `template/acervo/dominios/Exemplo/Exemplo.md`. A isenção de `template/` nasceu com a revogação e
+>   o motor antigo não a tem. (O portão de **commit** só bloqueia se você colocar `template/` em
+>   stage, o que não acontece em trabalho normal.)
+> - Toda correção futura em `scripts/` chega pelo `git pull` e **não entra em vigor** — os ganchos
+>   executam o clone antigo.
+> - O `verificador-de-fato` vai **denunciar a máquina**, e isso é o sistema funcionando: dois `afere`
+>   de `Desenvolvimento.md` esperam os 9 ganchos apontando para dentro e `core.hooksPath` relativo.
+>   Numa máquina não migrada os dois divergem. **Divergência ali significa "esta máquina não
+>   migrou"**, não "o nó mente".
+> - O `sincronizador` antigo ainda empurra o clone de `…-maquinaria`. Se houver commit local lá, ele
+>   vai para o repositório público congelado.
+>
+> ### A migração — três comandos, provados em sandbox com `HOME` isolado
+>
+> ```bash
+> cd ~/Documentos/repos
+> mv orquestrador-normativo-agente-acervo orquestrador-normativo-agente
+> rm -rf orquestrador-normativo-agente-maquinaria      # o clone antigo do motor; nada seu mora nele
+> bash orquestrador-normativo-agente/install.sh
+> ```
+>
+> **Antes do `rm -rf`, conferir que nada seu mora no clone antigo:**
+> `git -C orquestrador-normativo-agente-maquinaria status -sb` deve estar limpo e sem commit à
+> frente do remoto. Se houver, decida o que fazer com ele primeiro — desambiguar antes de destruir.
+>
+> **O que provar depois:** o `install.sh` fecha com todos os `[ok]`, incluindo *"9 ganchos ligados"*
+> e *"verificador-de-maquinaria passa"*; rodar de novo diz *"nada a fazer"* (U8); e
+> `git config core.hooksPath` devolve `scripts/git-hooks` — relativo, não absoluto.
+
 Este roteiro **não é a instalação**. A instalação já está construída e não se reescreve aqui (U1):
-`machine/setup.sh` clona os dois repos e chama o `install.sh` do motor (`install_claude_config`),
+`machine/setup.sh` clona o orquestrador e chama o `install.sh` dele (`install_claude_config`),
 e o [`Roteiro-de-aceite.md`](Roteiro-de-aceite.md) é a passada de aceite em VM virgem.
 
 O que este documento cobre é o caso que nenhum dos dois cobre: **uma segunda máquina real do mesmo
